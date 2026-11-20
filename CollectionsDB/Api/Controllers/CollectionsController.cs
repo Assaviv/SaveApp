@@ -125,16 +125,15 @@ public class CollectionsController : ControllerBase
     }
 
     // {id} is the target collection. The card keeps its id (and its embedding).
+    // Moves a card to collection {id} at the given rank, or to its end without one. A move within the
+    // same collection is a reorder. Idempotent (same target + rank), so outbox retries are safe.
     [HttpPost("{id:length(36)}/Cards/{cardId}/move")]
-    public async Task<IActionResult> MoveCard([FromRoute] string id, [FromRoute] string cardId) =>
-        await _collectionsService.MoveCardAsync(cardId, id) ? Ok() : NotFound();
+    public async Task<IActionResult> MoveCard([FromRoute] string id, [FromRoute] string cardId, [FromBody] MoveCardRequest? request) =>
+        await _collectionsService.MoveCardAsync(cardId, id, request?.Rank) ? Ok() : NotFound();
 
+    // Updates a card's content. Its rank is kept; reordering goes through …/move.
     [HttpPut("{id:length(36)}/Cards")]
-    public async Task<IActionResult> UpdateCardInCollection([FromRoute] string id, [FromBody] CardRequest request)
-    { 
-        // TODO: There are 2 update methods "put" the change position sends a request to the other updates handler
-        // TODO:        The request is being sent with order: -1 and position: -1, the collectionsId being sent twice. and fix the API
-        return await _collectionsService.UpdateCardAsync(id, request.ToDomain()) ? Ok() : NotFound();
-    }
+    public async Task<IActionResult> UpdateCardInCollection([FromRoute] string id, [FromBody] CardRequest request) =>
+        await _collectionsService.UpdateCardAsync(id, request.ToDomain()) ? Ok() : NotFound();
 
 }
