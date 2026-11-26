@@ -131,9 +131,10 @@ export class AuthService {
     } catch {
       // Refresh token rejected (expired/revoked) or no network.
       // init() can only run once per instance, so use a fresh client for login().
+      // It must be initialized too: createLoginUrl() on an uninitialized client throws.
+      // Keep the saved session: this also runs when offline, and a later login overwrites it.
       this.keycloak = this.createClient();
-      this.authenticated.set(false);
-      return false;
+      return this.initWithoutSession();
     }
   }
 
