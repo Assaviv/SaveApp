@@ -17,9 +17,5 @@ export const environment = {
         url: "https://keycloak-collections.dev.localhost:8080/",
         realm: "save-app",
         clientId: "save-app-ui"
-    },
-    // Browser OpenTelemetry (traces, error logs). Needs the /otlp dev-server proxy (Aspire).
-    telemetry: {
-        enabled: false
     }
 };

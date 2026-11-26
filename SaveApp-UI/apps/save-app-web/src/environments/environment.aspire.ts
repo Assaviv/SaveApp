@@ -17,11 +17,5 @@ export const environment = {
         url: "https://keycloak-collections.dev.localhost:8443/",
         realm: "save-app",
         clientId: "save-app-ui"
-    },
-    // Browser OpenTelemetry: exported to /otlp, which proxy.conf.js forwards to the Aspire dashboard.
-    telemetry: {
-        enabled: true,
-        serviceName: 'save-app-web',
-        otlpUrl: '/otlp'
     }
 };

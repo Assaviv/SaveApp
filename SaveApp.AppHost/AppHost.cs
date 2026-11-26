@@ -86,8 +86,7 @@ builder.AddNxApp("SaveAppUI", "../SaveApp-UI")
     .AddApp("save-app-web")
     .WithHttpsEndpoint(port: 4200, env: "PORT", isProxied: false)
     .WithExternalHttpEndpoints()
-    .WithArgs("-c", "aspire")
-    .WithOtlpExporter(OtlpProtocol.HttpProtobuf); // read by proxy.conf.js, which forwards the browser's /otlp to the dashboard
+    .WithArgs("-c", "aspire");
 
 
 // CONDITIONAL BUILD

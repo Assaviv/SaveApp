@@ -14,9 +14,5 @@ export const environment = {
     apiBaseUrl: '/api',
     auth: {
         enabled: false
-    },
-    // Browser OpenTelemetry (traces, error logs). Needs the /otlp dev-server proxy (Aspire).
-    telemetry: {
-        enabled: false
     }
 };

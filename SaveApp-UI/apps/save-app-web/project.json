@@ -82,7 +82,7 @@
       "options": {
         "ssl": true,
         "disableHostCheck": true,
-        "proxyConfig": "apps/save-app-web/proxy.conf.js"
+        "proxyConfig": "apps/save-app-web/proxy.conf.json"
       }
     },
     "extract-i18n": {
