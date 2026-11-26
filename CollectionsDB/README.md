@@ -119,4 +119,6 @@ dotnet run                     # Swagger at /swagger (Development)
 dotnet tool restore && dotnet ef migrations add <Name> -o Persistence/Migrations
 ```
 
+Telemetry comes from `builder.AddServiceDefaults()` ([SaveApp.ServiceDefaults](../SaveApp.ServiceDefaults/README.md)): ASP.NET Core, HttpClient, Npgsql and runtime traces/metrics, exported over OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+
 Configuration: `CollectionsDB:ConnectionString`, `Embedding:Endpoint|Model`, `Llm:OllamaEndpoint|Model`. Aspire sets these as environment variables.

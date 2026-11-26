@@ -27,6 +27,7 @@ flowchart LR
 | [SaveAppGateway](SaveAppGateway/README.md) | JWT validation, `X-Profile` identity forwarding, and routing `/api/**` |
 | [CollectionsDB](CollectionsDB/README.md) | REST API, per-user data model, pgvector embeddings, and the RAG chat stream |
 | [SaveApp.AppHost](SaveApp.AppHost/README.md) | Aspire orchestration for local development and its configuration |
+| [SaveApp.ServiceDefaults](SaveApp.ServiceDefaults/README.md) | Shared OpenTelemetry (traces, metrics, logs) and health-check defaults for the .NET services |
 
 ## DEVELOPMENT
 This is the environment which we run the local development using Aspire .NET

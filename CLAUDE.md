@@ -6,14 +6,15 @@ Save App ("Collections") is a personal memory app. Users keep **Collections**, w
 
 | Path | What it is | Stack |
 |---|---|---|
-| `SaveApp.AppHost/` | Local orchestrator. Starts every service below. | .NET Aspire 13.6 (net10.0) |
+| `SaveApp.AppHost/` | Local orchestrator. Starts every service below. | .NET Aspire 17.0 (net10.0) |
+| `SaveApp.ServiceDefaults/` | Shared `AddServiceDefaults()`: OpenTelemetry (ASP.NET Core, HttpClient, Npgsql, runtime) + health checks, exported to the Aspire dashboard over OTLP. | OpenTelemetry .NET |
 | `CollectionsDB/` | Backend REST API + RAG. Project/assembly name is `CollectionsService`. | ASP.NET Core 10, EF Core + Npgsql + pgvector, OllamaSharp |
 | `SaveAppGateway/` | API gateway: validates the JWT, then proxies `/api/**` to the backend. | Spring Boot 4.1 / Spring Cloud Gateway (WebFlux), Java 25, Gradle |
 | `SaveApp-UI/` | Frontend monorepo: `save-app-web` and `save-app-mobile` apps plus shared libs. | Nx 19, Angular 18, Capacitor 8, Jest |
 | `CollectionsArchitecture/` | draw.io architecture diagram | |
 | `.agents/skills/` | Aspire agent skills (aspire, aspireify, aspire-deployment, …) | |
 
-`Collections.slnx` contains only the two .NET projects. The real JS workspace is `SaveApp-UI/` (it also holds `@aparajita/capacitor-secure-storage`, used by the mobile `AuthService`).
+`Collections.slnx` contains the three .NET projects. The real JS workspace is `SaveApp-UI/` (it also holds `@aparajita/capacitor-secure-storage`, used by the mobile `AuthService`).
 
 ## Request flow
 
@@ -48,7 +49,7 @@ The AppHost starts:
 - `ollama` (persistent container + volume) with the models `nomic-embed-text` and `qwen3:8b`.
 - `collections-service`, which receives the connection string and `Embedding__*` / `Llm__*` env vars.
 - `keycloak` on 8443, importing `SaveApp.AppHost/Realms/save-app-realm.json` (realm `save-app`, clients `save-app-ui` and `save-app-mobile`).
-- `gateway` through `./gradlew bootRun` in `SaveAppGateway/` on port 8000 with Spring profile `dev`. That profile trusts `SaveAppGateway/certs/keycloak-dev.pem`.
+- `gateway` through `./gradlew bootRun` in `SaveAppGateway/` on port 8000 with Spring profile `dev`. `WithOtlpExporter()` sets `OTEL_*`, which makes `bootRun` attach the OpenTelemetry Java agent. That profile trusts `SaveAppGateway/certs/keycloak-dev.pem`.
 - The `save-app-web` Nx app on https 4200, run with `-c aspire`. **`npm install` is not run** (`install: false`), so run `npm install` in `SaveApp-UI/` yourself first.
 
 AppHost config (`SaveApp.AppHost/appsettings.json` → `App`): `AuthenticationEnabled`, `Realm`, `KeycloakUrl`, `KeycloakPublicUrl` (Tailscale host), `IsPersistent`. When `IsPersistent` is true, Postgres and Keycloak get data volumes. Otherwise the data is thrown away on every run.

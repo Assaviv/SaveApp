@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using CollectionsDB.Services.Llm;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults(); // OpenTelemetry (ASP.NET Core, HttpClient, Npgsql, runtime) + health checks
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -25,7 +26,6 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<ICurrentUser>(sp => sp.GetRequiredService<CurrentUser>());
 builder.Services.AddScoped<IUserContext>(sp => sp.GetRequiredService<CurrentUser>());
-builder.Services.AddHealthChecks();
 
 // Database: EF Core + Npgsql + pgvector
 builder.Services.AddDbContext<CollectionsDBContext>((sp, options) =>

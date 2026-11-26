@@ -57,7 +57,8 @@ var keycloak = builder.AddKeycloak("keycloak", 8443)
     // .WithEnvironment("KC_HOSTNAME", keycloakUrl)
     .WithEnvironment("KC_HOSTNAME_STRICT", "false")
     .WithEnvironment("KC_PROXY_HEADERS", "xforwarded")
-    .WithRealmImport("./Realms");
+    .WithRealmImport("./Realms")
+    .WithOtlpExporter();
 
 var gateway = builder.AddExecutable("gateway", "./gradlew", "../SaveAppGateway", "bootRun")
     .WithHttpEndpoint(port: 8000, env: "SERVER_PORT", name: "http")
@@ -68,6 +69,7 @@ var gateway = builder.AddExecutable("gateway", "./gradlew", "../SaveAppGateway",
     .WithEnvironment("KEYCLOAK_JWK_SET_URI", $"https://localhost:8443/realms/{realm}/protocol/openid-connect/certs")
     .WithEnvironment("APP_SECURITY_ALLOWED_ISSUERS", allowedIssuers)
     .WithEnvironment("SPRING_PROFILES_ACTIVE", "dev")
+    .WithOtlpExporter() // picked up by the OpenTelemetry Java agent (see SaveAppGateway/build.gradle)
     .WaitFor(keycloak);
 
 

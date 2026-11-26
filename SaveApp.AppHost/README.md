@@ -34,6 +34,8 @@ flowchart LR
 
 Startup order: `collections-service` waits for the database, and `gateway` waits for Keycloak.
 
+Telemetry: the Aspire dashboard receives traces, metrics and logs from `collections-service` (through [SaveApp.ServiceDefaults](../SaveApp.ServiceDefaults/README.md)), from `gateway` (the OpenTelemetry Java agent, enabled by `WithOtlpExporter()`), and from `keycloak` (its built-in OpenTelemetry, enabled by `WithOtlpExporter()`). A request shows as one trace across gateway → collections-service → Postgres/Ollama.
+
 ## Configuration
 
 `appsettings.json` → `App` section:
