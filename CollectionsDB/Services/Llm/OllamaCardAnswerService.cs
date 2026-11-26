@@ -23,11 +23,19 @@ public sealed class OllamaCardAnswerService
     // "forever"; it needs a unit, because Ollama rejects the bare string "-1" with a 400.
     private const string KeepAlive = "-1m";
 
+    // Fixed context size (Ollama's default today). Every request, the warm-up included, must send the
+    // same value: Ollama reloads the model whenever num_ctx changes.
+    private const int ContextTokens = 4096;
+
+    // Per-card limit, so three long cards plus the prompt still fit in ContextTokens.
+    // ~3000 chars (~750 tokens) is roughly a 500-word story.
+    private const int DefaultMaxCardChars = 3000;
+
     public const string NoMemoryMessage = "I couldn't find a memory about that.";
 
     private const string SystemPrompt = """
         You summarize saved memories for the user.
-        The user input is a search phrase. The supplied memories are ordered from most relevant to least relevant.
+        The user input is a search phrase and numbered memories inside <memories>, ordered from most relevant to least relevant.
         Memory [1] is the strongest match. Start with [1] when it answers or relates to the search.
         Do not give a weaker later memory equal or greater weight just because it is easier to discuss.
         Mention later memories only when they add useful information that [1] does not provide.
@@ -39,6 +47,7 @@ public sealed class OllamaCardAnswerService
         """;
 
     private readonly OllamaApiClient _ollama;
+    private readonly int _maxCardChars;
     private readonly ILogger<OllamaCardAnswerService> _logger;
 
     public OllamaCardAnswerService(
@@ -52,6 +61,9 @@ public sealed class OllamaCardAnswerService
         {
             SelectedModel = configuration["Llm:Model"] ?? DefaultModel,
         };
+        _maxCardChars = configuration.GetValue("Llm:MaxCardChars", DefaultMaxCardChars);
+        if (_maxCardChars <= 0)
+            throw new InvalidOperationException("Llm:MaxCardChars must be positive.");
         _logger = logger;
     }
 
@@ -85,6 +97,7 @@ public sealed class OllamaCardAnswerService
             ],
             Options = new RequestOptions
             {
+                NumCtx = ContextTokens,
                 Temperature = 0.2f,
                 NumPredict = 80
             }
@@ -125,7 +138,7 @@ public sealed class OllamaCardAnswerService
             Think = false,
             KeepAlive = KeepAlive,
             Messages = [new Message(ChatRole.System, SystemPrompt)],
-            Options = new RequestOptions { NumPredict = 1 }
+            Options = new RequestOptions { NumCtx = ContextTokens, NumPredict = 1 }
         };
 
         await foreach (var chunk in _ollama.ChatAsync(request, cancellationToken)
@@ -137,21 +150,30 @@ public sealed class OllamaCardAnswerService
         }
     }
 
-    private static string BuildUserPrompt(string question, IReadOnlyList<Card> results)
+    // Everything constant lives in the system prompt, so Ollama reuses its cached evaluation and
+    // only has to read the memories and the question on each search.
+    private string BuildUserPrompt(string question, IReadOnlyList<Card> results)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("The results below are ordered by relevance: [1] is the strongest match.");
         sb.AppendLine("<memories>");
 
         for (var i = 0; i < results.Count; i++)
-            sb.AppendLine($"[{i + 1}] {results[i].Key}: {results[i].Value}");
+            sb.AppendLine($"[{i + 1}] {results[i].Key}: {Truncate(results[i].Value?.ToString(), _maxCardChars)}");
 
         sb.AppendLine("</memories>");
         sb.AppendLine();
-        sb.AppendLine($"Search: {question}");
-        sb.AppendLine();
-        sb.Append("/no_think");
+        sb.Append($"Search: {question}");
         return sb.ToString();
+    }
+
+    private static string Truncate(string? text, int maxChars)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxChars)
+            return text ?? string.Empty;
+
+        // Don't cut a surrogate pair in half.
+        var cut = char.IsHighSurrogate(text[maxChars - 1]) ? maxChars - 1 : maxChars;
+        return string.Concat(text.AsSpan(0, cut), "…");
     }
 
     // Ollama reports durations in nanoseconds.
