@@ -1,17 +1,28 @@
-using System.Text;
-using System.Text.RegularExpressions;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text;
 using CollectionsDB.Domain.Cards;
 using OllamaSharp;
 using OllamaSharp.Models;
+using OllamaSharp.Models.Chat;
 
 namespace CollectionsDB.Services.Llm;
 
 /// <summary>
 /// Generates answers from retrieved cards using the OllamaSharp client.
 /// </summary>
-public sealed partial class OllamaCardAnswerService
+public sealed class OllamaCardAnswerService
 {
+    // AddServiceDefaults exports the source named after the application (= this assembly).
+    private static readonly ActivitySource Source =
+        new(typeof(OllamaCardAnswerService).Assembly.GetName().Name!);
+
+    public const string DefaultModel = "qwen3:4b-instruct-2507-q4_K_M";
+
+    // Never unload the model: on a CPU-only host a reload costs ~30 s. A negative duration means
+    // "forever"; it needs a unit, because Ollama rejects the bare string "-1" with a 400.
+    private const string KeepAlive = "-1m";
+
     public const string NoMemoryMessage = "I couldn't find a memory about that.";
 
     private const string SystemPrompt = """
@@ -39,7 +50,7 @@ public sealed partial class OllamaCardAnswerService
         httpClient.BaseAddress = new Uri(endpoint);
         _ollama = new OllamaApiClient(httpClient)
         {
-            SelectedModel = configuration["Llm:Model"] ?? "qwen3:8b",
+            SelectedModel = configuration["Llm:Model"] ?? DefaultModel,
         };
         _logger = logger;
     }
@@ -59,9 +70,19 @@ public sealed partial class OllamaCardAnswerService
 
         _logger.LogInformation("Starting Ollama answer for {CardCount} retrieved memories", results.Count);
 
-        var chat = new Chat(_ollama, SystemPrompt)
+        using var activity = Source.StartActivity("llm.answer");
+        activity?.SetTag("llm.model", _ollama.SelectedModel);
+
+        var request = new ChatRequest
         {
+            Model = _ollama.SelectedModel,
             Think = false,
+            KeepAlive = KeepAlive,
+            Messages =
+            [
+                new Message(ChatRole.System, SystemPrompt),
+                new Message(ChatRole.User, BuildUserPrompt(question, results))
+            ],
             Options = new RequestOptions
             {
                 Temperature = 0.2f,
@@ -69,14 +90,51 @@ public sealed partial class OllamaCardAnswerService
             }
         };
 
-        await foreach (var token in chat.SendAsync(
-                           BuildUserPrompt(question, results), cancellationToken)
+        var stopwatch = Stopwatch.StartNew();
+        var firstToken = true;
+
+        await foreach (var chunk in _ollama.ChatAsync(request, cancellationToken)
                            .WithCancellation(cancellationToken))
         {
+            if (chunk is ChatDoneResponseStream done)
+                RecordTimings(activity, done);
+
+            var token = chunk?.Message?.Content;
+            if (string.IsNullOrEmpty(token))
+                continue;
+
+            if (firstToken)
+            {
+                firstToken = false;
+                activity?.SetTag("llm.first_token_ms", stopwatch.ElapsedMilliseconds);
+            }
+
             yield return token;
         }
+    }
 
-        _logger.LogInformation("Ollama answer generation completed");
+    /// <summary>
+    /// Loads the answer model and evaluates the system prompt, so the first real search
+    /// neither waits for the load nor re-reads the system prompt.
+    /// </summary>
+    public async Task WarmUpAsync(CancellationToken cancellationToken)
+    {
+        var request = new ChatRequest
+        {
+            Model = _ollama.SelectedModel,
+            Think = false,
+            KeepAlive = KeepAlive,
+            Messages = [new Message(ChatRole.System, SystemPrompt)],
+            Options = new RequestOptions { NumPredict = 1 }
+        };
+
+        await foreach (var chunk in _ollama.ChatAsync(request, cancellationToken)
+                           .WithCancellation(cancellationToken))
+        {
+            if (chunk is ChatDoneResponseStream done)
+                _logger.LogInformation("Ollama warm-up for {Model}: load {LoadMs} ms, total {TotalMs} ms",
+                    _ollama.SelectedModel, Ms(done.LoadDuration), Ms(done.TotalDuration));
+        }
     }
 
     private static string BuildUserPrompt(string question, IReadOnlyList<Card> results)
@@ -96,6 +154,26 @@ public sealed partial class OllamaCardAnswerService
         return sb.ToString();
     }
 
-    [GeneratedRegex("<think>.*?</think>", RegexOptions.Singleline)]
-    private static partial Regex ThinkBlock();
+    // Ollama reports durations in nanoseconds.
+    private static long Ms(long ns) => ns / 1_000_000;
+
+    private void RecordTimings(Activity? activity, ChatDoneResponseStream done)
+    {
+        var loadMs = Ms(done.LoadDuration);
+        var promptEvalMs = Ms(done.PromptEvalDuration);
+        var evalMs = Ms(done.EvalDuration);
+        var totalMs = Ms(done.TotalDuration);
+
+        activity?.SetTag("llm.load_ms", loadMs);
+        activity?.SetTag("llm.prompt_eval_ms", promptEvalMs);
+        activity?.SetTag("llm.prompt_tokens", done.PromptEvalCount);
+        activity?.SetTag("llm.eval_ms", evalMs);
+        activity?.SetTag("llm.eval_tokens", done.EvalCount);
+        activity?.SetTag("llm.total_ms", totalMs);
+
+        _logger.LogInformation(
+            "Ollama timings: load {LoadMs} ms, prompt eval {PromptEvalMs} ms ({PromptTokens} tokens), " +
+            "eval {EvalMs} ms ({EvalTokens} tokens), total {TotalMs} ms",
+            loadMs, promptEvalMs, done.PromptEvalCount, evalMs, done.EvalCount, totalMs);
+    }
 }

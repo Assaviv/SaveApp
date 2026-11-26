@@ -13,7 +13,7 @@ flowchart LR
     subgraph Containers
         PG[("postgres<br/>image: postgres-vector")]
         PGA[pgAdmin]
-        OL["ollama<br/>nomic-embed-text, qwen3:8b"]
+        OL["ollama<br/>nomic-embed-text, qwen3:4b-instruct-2507"]
         KC["keycloak :8443<br/>realm import ./Realms"]
     end
 
@@ -33,6 +33,10 @@ flowchart LR
 ```
 
 Startup order: `collections-service` waits for the database, and `gateway` waits for Keycloak.
+
+### Ollama
+
+The server is a CPU-only laptop, so `ollama` runs with `OLLAMA_KEEP_ALIVE=-1` (never unload a model; a reload took ~30 s and thrashed the disk), `OLLAMA_MAX_LOADED_MODELS=2` (embedding and answer model stay loaded together) and `OLLAMA_NUM_PARALLEL=1` (one KV cache). The answer model is `qwen3:4b-instruct-2507-q4_K_M` (~2.5 GB), picked to keep RAM free. `collections-service` waits for both models to be pulled before it starts. The container is persistent: if it keeps old env values after a change, `docker rm` it once (the model volume stays).
 
 ### Telemetry
 
