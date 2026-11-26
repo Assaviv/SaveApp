@@ -15,7 +15,7 @@ export const environment = {
     auth: {
         enabled: false
     },
-    // Browser OpenTelemetry (traces, web-vitals metrics, error logs). Needs the /otlp dev-server proxy (Aspire).
+    // Browser OpenTelemetry (traces, error logs). Needs the /otlp dev-server proxy (Aspire).
     telemetry: {
         enabled: false
     }

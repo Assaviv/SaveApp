@@ -147,10 +147,9 @@ flowchart LR
 | Signal | Source |
 |---|---|
 | Traces | Page load, `fetch` and XHR. A W3C `traceparent` is sent on same-origin `/api` calls, so the gateway and backend join the browser's trace. |
-| Metrics | Web Vitals (`web_vitals.lcp`, `inp`, `cls`, `fcp`, `ttfb`) as histograms, tagged with `rating` |
 | Logs | A startup record, and every uncaught Angular error (`TelemetryErrorHandler`, with `exception.*` attributes) |
 
-Exports go to `/otlp/v1/{traces,metrics,logs}` on the dev server. `proxy.conf.js` forwards `/otlp` to the Aspire dashboard (`OTEL_EXPORTER_OTLP_ENDPOINT`) and adds the dashboard API key from `OTEL_EXPORTER_OTLP_HEADERS` on the server side, so the key never reaches the browser. Without Aspire, the `/otlp` route isn't registered. Every environment file must keep a `telemetry` block.
+Exports go to `/otlp/v1/{traces,logs}` on the dev server. `proxy.conf.js` forwards `/otlp` to the Aspire dashboard (`OTEL_EXPORTER_OTLP_ENDPOINT`) and adds the dashboard API key from `OTEL_EXPORTER_OTLP_HEADERS` on the server side, so the key never reaches the browser. Without Aspire, the `/otlp` route isn't registered. Every environment file must keep a `telemetry` block.
 
 ## Mobile specifics
 

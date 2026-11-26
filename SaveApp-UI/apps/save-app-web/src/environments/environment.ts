@@ -18,7 +18,7 @@ export const environment = {
         realm: "save-app",
         clientId: "save-app-ui"
     },
-    // Browser OpenTelemetry (traces, web-vitals metrics, error logs). Needs the /otlp dev-server proxy (Aspire).
+    // Browser OpenTelemetry (traces, error logs). Needs the /otlp dev-server proxy (Aspire).
     telemetry: {
         enabled: false
     }
