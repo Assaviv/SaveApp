@@ -28,7 +28,7 @@ SaveAppGateway (:8000)  ── validates JWT against Keycloak JWKS (allowed issu
 CollectionsService (/api/Collections, /api/RAG)
    │  CurrentUser reads X-Profile → UserId
    ▼
-Postgres + pgvector (custom image)      Ollama (nomic-embed-text, qwen3:8b)
+Postgres + pgvector (custom image)      Ollama (nomic-embed-text, qwen3:4b-instruct-2507)
 ```
 
 - **Multi-tenancy lives in `CollectionsDBContext`.** Global query filters scope `collections`, `cards` and `card_embeddings` to `ICurrentUser.UserId`, and `SaveChanges` stamps `UserId` on new rows. Repositories never filter by user themselves. Don't add per-query user filters, and don't bypass the filters (`IgnoreQueryFilters`) without a good reason.
@@ -46,7 +46,7 @@ aspire run          # or: dotnet run --project SaveApp.AppHost
 
 The AppHost starts:
 - `postgres` from the **local image `postgres-vector:latest`**. Build it once with `docker build -f CollectionsDB/Dockerfile.postgres -t postgres-vector CollectionsDB`. pgAdmin is included.
-- `ollama` (persistent container + volume) with the models `nomic-embed-text` and `qwen3:8b`.
+- `ollama` (persistent container + volume) with the models `nomic-embed-text` and `qwen3:4b-instruct-2507-q4_K_M`. The host is a CPU-only laptop, so it sets `OLLAMA_KEEP_ALIVE=-1`, `OLLAMA_MAX_LOADED_MODELS=2` and `OLLAMA_NUM_PARALLEL=1` to keep both models loaded (a reload costs ~30 s). `LlmWarmupService` loads the answer model at backend startup. `OllamaCardAnswerService` logs Ollama's timings and adds them to an `llm.answer` span. It sends a fixed `num_ctx=4096` (warm-up included; a different value reloads the model) and cuts each card value at `Llm:MaxCardChars` (default 3000).
 - `collections-service`, which receives the connection string and `Embedding__*` / `Llm__*` env vars.
 - `keycloak` on 8443, importing `SaveApp.AppHost/Realms/save-app-realm.json` (realm `save-app`, clients `save-app-ui` and `save-app-mobile`). `WithKeycloakTelemetry()` (`KeycloakTelemetryExtensions.cs`) maps the `OTEL_*` vars onto Keycloak's own `KC_TRACING_*` / `KC_TELEMETRY_*` options and trusts Aspire's CA bundle.
 - `gateway` through `./gradlew bootRun` in `SaveAppGateway/` on port 8000 with Spring profile `dev`. `WithOtlpExporter()` sets `OTEL_*`, which makes `bootRun` attach the OpenTelemetry Java agent. `OTEL_EXPORTER_OTLP_CERTIFICATE` (Aspire's CA bundle) lets Java trust the dashboard's dev certificate. That profile trusts `SaveAppGateway/certs/keycloak-dev.pem`.

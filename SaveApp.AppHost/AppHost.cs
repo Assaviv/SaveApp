@@ -17,13 +17,19 @@ var postgres = builder.AddPostgres("postgres")
 var collectionsDb = postgres.AddDatabase("collections");
 
 
-// MODELS: nomic-embed-text
+// MODELS: nomic-embed-text + answer model
+// The server is a CPU-only laptop: keep both models loaded (reloading one costs ~30 s and
+// thrashes the disk), and run one request at a time so only one KV cache is allocated.
 var ollama = builder.AddOllama("ollama")
     .WithDataVolume()
-    .WithLifetime(ContainerLifetime.Persistent);
+    .WithLifetime(ContainerLifetime.Persistent)
+    .WithEnvironment("OLLAMA_KEEP_ALIVE", "-1")
+    .WithEnvironment("OLLAMA_MAX_LOADED_MODELS", "2")
+    .WithEnvironment("OLLAMA_NUM_PARALLEL", "1");
 
 var embeddingModel = ollama.AddModel("nomic-embed-text");
-var answerModel = ollama.AddModel("qwen3:8b");
+const string answerModelName = "qwen3:4b-instruct-2507-q4_K_M";
+var answerModel = ollama.AddModel(answerModelName);
 
 
 // BACKEND: collections-service
@@ -35,10 +41,13 @@ var server = builder.AddProject<Projects.CollectionsService>("collections-servic
     .WithEnvironment("Embedding__Model", "nomic-embed-text")
     .WithEnvironment("Llm__Endpoint",
         ReferenceExpression.Create($"{ollama.GetEndpoint("http")}/v1/chat/completions"))
-    .WithEnvironment("Llm__Model", "qwen3:8b")
+    .WithEnvironment("Llm__Model", answerModelName)
     .WithEnvironment("Llm__OllamaEndpoint",
         ReferenceExpression.Create($"{ollama.GetEndpoint("http")}"))
     .WaitFor(collectionsDb)
+    // Start only once both models are pulled, so the warm-up and the first search find them.
+    .WaitFor(embeddingModel)
+    .WaitFor(answerModel)
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints(); 
 

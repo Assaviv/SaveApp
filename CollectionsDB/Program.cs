@@ -40,6 +40,7 @@ builder.Services.AddScoped<IRagService, RagService>();
 
 builder.Services.AddHttpClient<EmbeddingService>();
 builder.Services.AddHttpClient<OllamaCardAnswerService>(c => c.Timeout = TimeSpan.FromMinutes(2));
+builder.Services.AddHostedService<LlmWarmupService>();
 
 var app = builder.Build();
 
