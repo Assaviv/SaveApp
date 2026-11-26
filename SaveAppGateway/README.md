@@ -37,7 +37,7 @@ With security disabled no `X-Profile` is sent, and the backend rejects data acce
 | `APP_SECURITY_ALLOWED_ISSUERS` | Comma-separated list of accepted `iss` values. |
 | `SPRING_PROFILES_ACTIVE=dev` | Loads `application-dev.yml`, which trusts `certs/keycloak-dev.pem` (`KEYCLOAK_DEV_CERT`). |
 
-Telemetry: when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (the AppHost sets it), `bootRun` attaches the OpenTelemetry Java agent (`otelAgent` configuration in `build.gradle`). The agent auto-instruments Netty/WebFlux, Spring Cloud Gateway routing, the JWKS fetch and the JVM, and propagates `traceparent` to the backend. A plain `./gradlew bootRun` runs without it.
+Telemetry: when `OTEL_EXPORTER_OTLP_ENDPOINT` is set (the AppHost sets it), `bootRun` attaches the OpenTelemetry Java agent (`otelAgent` configuration in `build.gradle`). The agent auto-instruments Netty/WebFlux, Spring Cloud Gateway routing, the JWKS fetch and the JVM, and propagates `traceparent` to the backend. A plain `./gradlew bootRun` runs without it. The dashboard's endpoint uses the ASP.NET dev certificate, so the AppHost also sets `OTEL_EXPORTER_OTLP_CERTIFICATE` to Aspire's CA bundle.
 
 Allowed CORS origins are listed in **two** places in `application.yml`: `spring.cloud.gateway…globalcors` and `app.cors.allowed-origins`. Keep them in sync.
 

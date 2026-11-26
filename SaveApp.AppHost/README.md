@@ -34,7 +34,18 @@ flowchart LR
 
 Startup order: `collections-service` waits for the database, and `gateway` waits for Keycloak.
 
-Telemetry: the Aspire dashboard receives traces, metrics and logs from `collections-service` (through [SaveApp.ServiceDefaults](../SaveApp.ServiceDefaults/README.md)), from `gateway` (the OpenTelemetry Java agent, enabled by `WithOtlpExporter()`), and from `keycloak` (its built-in OpenTelemetry, enabled by `WithOtlpExporter()`). A request shows as one trace across gateway → collections-service → Postgres/Ollama.
+### Telemetry
+
+The Aspire dashboard receives traces, metrics and logs from every service. A click in the browser shows as one trace: save-app-web → gateway → collections-service → Postgres/Ollama.
+
+| Resource | How |
+|---|---|
+| `collections-service` | [SaveApp.ServiceDefaults](../SaveApp.ServiceDefaults/README.md) |
+| `gateway` | OpenTelemetry Java agent, from `WithOtlpExporter()`. Java doesn't trust the dashboard's ASP.NET dev certificate, so `WithCertificateTrustConfiguration` passes Aspire's CA bundle as `OTEL_EXPORTER_OTLP_CERTIFICATE`. |
+| `keycloak` | Keycloak's built-in OpenTelemetry. `WithKeycloakTelemetry()` (`KeycloakTelemetryExtensions.cs`) maps the `OTEL_*` values onto `KC_TRACING_*` / `KC_TELEMETRY_*` (including the API-key header), enables the `opentelemetry-logs` and `opentelemetry-metrics` features, and sets `KC_TRUSTSTORE_PATHS` to Aspire's CA bundle. |
+| `save-app-web` | Browser SDK, exporting to `/otlp` on the dev server. `WithOtlpExporter(OtlpProtocol.HttpProtobuf)` gives the dev server the dashboard's OTLP/HTTP endpoint and API key, and `proxy.conf.js` forwards `/otlp` there with the key. That endpoint comes from `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL` in `Properties/launchSettings.json`. |
+
+Use `aspire otel logs|spans|traces <resource>` to read telemetry from the terminal.
 
 ## Configuration
 

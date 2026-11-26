@@ -140,6 +140,18 @@ flowchart LR
 - **Native:** the login page opens in the system browser (`@capacitor/browser`) and redirects back to `com.aviv.saveapp:/auth`. Tokens, including the `offline_access` refresh token, are kept in secure storage.
 - `authInterceptor` adds `Authorization: Bearer`. `KEYCLOAK_CONFIG.enabled=false` turns auth off.
 
+## Telemetry (`save-app-web`)
+
+`apps/save-app-web/src/app/telemetry/telemetry.ts` sets up the OpenTelemetry browser SDK when `environment.telemetry.enabled` is true (only `environment.aspire.ts`). `main.ts` loads it with a dynamic `import()`, so other builds never load the SDK.
+
+| Signal | Source |
+|---|---|
+| Traces | Page load, `fetch` and XHR. A W3C `traceparent` is sent on same-origin `/api` calls, so the gateway and backend join the browser's trace. |
+| Metrics | Web Vitals (`web_vitals.lcp`, `inp`, `cls`, `fcp`, `ttfb`) as histograms, tagged with `rating` |
+| Logs | A startup record, and every uncaught Angular error (`TelemetryErrorHandler`, with `exception.*` attributes) |
+
+Exports go to `/otlp/v1/{traces,metrics,logs}` on the dev server. `proxy.conf.js` forwards `/otlp` to the Aspire dashboard (`OTEL_EXPORTER_OTLP_ENDPOINT`) and adds the dashboard API key from `OTEL_EXPORTER_OTLP_HEADERS` on the server side, so the key never reaches the browser. Without Aspire, the `/otlp` route isn't registered. Every environment file must keep a `telemetry` block.
+
 ## Mobile specifics
 
 - Environment: `apps/save-app-mobile/src/environments/environments.ts` (Tailscale host).
