@@ -19,4 +19,8 @@
     <PackageReference Include="OllamaSharp" Version="5.5.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SaveApp.ServiceDefaults\SaveApp.ServiceDefaults.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -34,6 +34,18 @@ flowchart LR
 
 Startup order: `collections-service` waits for the database, and `gateway` waits for Keycloak.
 
+### Telemetry
+
+The Aspire dashboard receives traces, metrics and logs from the backend services. A request shows as one trace: gateway → collections-service → Postgres/Ollama.
+
+| Resource | How |
+|---|---|
+| `collections-service` | [SaveApp.ServiceDefaults](../SaveApp.ServiceDefaults/README.md) |
+| `gateway` | OpenTelemetry Java agent, from `WithOtlpExporter()`. Java doesn't trust the dashboard's ASP.NET dev certificate, so `WithCertificateTrustConfiguration` passes Aspire's CA bundle as `OTEL_EXPORTER_OTLP_CERTIFICATE`. |
+| `keycloak` | Keycloak's built-in OpenTelemetry. `WithKeycloakTelemetry()` (`KeycloakTelemetryExtensions.cs`) maps the `OTEL_*` values onto `KC_TRACING_*` / `KC_TELEMETRY_*` (including the API-key header), enables the `opentelemetry-logs` and `opentelemetry-metrics` features, and sets `KC_TRUSTSTORE_PATHS` to Aspire's CA bundle. |
+
+Use `aspire otel logs|spans|traces <resource>` to read telemetry from the terminal.
+
 ## Configuration
 
 `appsettings.json` → `App` section:

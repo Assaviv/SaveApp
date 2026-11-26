@@ -13,6 +13,10 @@ java {
 	}
 }
 
+configurations {
+	otelAgent
+}
+
 repositories {
 	mavenCentral()
 }
@@ -29,6 +33,8 @@ dependencies {
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	otelAgent 'io.opentelemetry.javaagent:opentelemetry-javaagent:2.34.0'
 }
 
 dependencyManagement {
@@ -39,4 +45,11 @@ dependencyManagement {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Aspire sets OTEL_EXPORTER_OTLP_ENDPOINT: attach the OpenTelemetry Java agent so traces, metrics and logs reach the dashboard.
+tasks.named('bootRun') {
+	if (System.getenv('OTEL_EXPORTER_OTLP_ENDPOINT')) {
+		jvmArgs "-javaagent:${configurations.otelAgent.singleFile}"
+	}
 }
