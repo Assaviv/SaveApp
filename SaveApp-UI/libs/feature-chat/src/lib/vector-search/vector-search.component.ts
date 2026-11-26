@@ -62,7 +62,11 @@ export class VectorSearchComponent {
       });
       if (token) headers.set('Authorization', `Bearer ${token}`);
 
-      const response = await fetch(this.endpoint, {
+      // With CapacitorHttp enabled, window.fetch is a native call that returns the whole
+      // body at once (no streaming). Capacitor keeps the WebView's own fetch here.
+      const webFetch =
+        (window as { CapacitorWebFetch?: typeof fetch }).CapacitorWebFetch ?? fetch;
+      const response = await webFetch(this.endpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify(query),
@@ -88,7 +92,11 @@ export class VectorSearchComponent {
           eventEnd = buffer.indexOf('\n\n');
         }
 
-        if (done) break;
+        if (done) {
+          // The last event may arrive without its terminating blank line
+          if (!completed && buffer.trim()) completed = this.handleSseEvent(buffer, assistantMessage);
+          break;
+        }
       }
 
       if (!completed) throw new Error('The answer stream ended unexpectedly.');
