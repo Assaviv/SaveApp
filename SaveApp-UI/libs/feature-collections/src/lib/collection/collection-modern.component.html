@@ -1,8 +1,11 @@
 <div
+  class="drop-target"
+  [attr.data-card-drop-target]="collection.id"
   (click)="openCollection()"
   [@cardAnimation]="cardState"
   [class.inbox]="collection.kind === 'INBOX'"
 >
+  <div class="void" aria-hidden="true"><div class="void-core"></div></div>
 
   <div
     class="body"

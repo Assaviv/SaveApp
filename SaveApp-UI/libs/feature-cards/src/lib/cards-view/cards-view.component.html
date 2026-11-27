@@ -1,7 +1,8 @@
 <div cdkDropList [cdkDropListDisabled]="!enableDragDrop" (cdkDropListDropped)="dropCard($event)">
   <div *ngIf="cards.length; else emptyList">
     <ng-container *ngFor="let card of cards; trackBy: trackByCardId">
-      <div cdkDrag cdkDragBoundary=".list" class="dragable">
+      <div cdkDrag [cdkDragData]="card" cdkDragPreviewContainer="parent" class="dragable"
+        (cdkDragMoved)="trackDropTarget($event.pointerPosition)" (cdkDragReleased)="releaseCard()">
         <div cdkDragHandle class="drag-handle">
           <save-app-card [card]="card"> </save-app-card>
         </div>
